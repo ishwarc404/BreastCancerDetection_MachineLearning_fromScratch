@@ -18,7 +18,6 @@ df = pd.read_csv("breast_cancer.csv")
 df = df.drop(columns=["Unnamed: 0"]) #dropping the initial indexing column
 df.iloc[:,10].replace(2, 0,inplace=True)
 df.iloc[:,10].replace(4, 1,inplace=True)
-
 df = df.astype(float)
 
 

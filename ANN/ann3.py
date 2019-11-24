@@ -1,8 +1,4 @@
 from numpy import exp, array, random, dot
-
-
-
-
 ##getting the data
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
@@ -14,10 +10,25 @@ df.iloc[:,10].replace(4, 1,inplace=True)
 df = df.astype(float)
 
 
+def dataset_minmax(dataset):
+    print("comeshere")
+    minmax = list()
+    for i in range(len(dataset[0])):
+        col_values = [row[i] for row in dataset]
+        value_min = min(col_values)
+        value_max = max(col_values)
+        minmax.append([value_min, value_max])
+    return minmax
+
+
 names = df.columns[0:10]
 scaler = MinMaxScaler() 
 scaled_df = scaler.fit_transform(df.iloc[:,0:10]) 
 scaled_df = pd.DataFrame(scaled_df, columns=names)
+print(scaled_df)
+
+
+# scaled_df = pd.DataFrame(scaled_df, columns=names)
 
 
 xtrain=scaled_df.iloc[0:512,1:10] #.values.transpose()
@@ -107,10 +118,10 @@ if __name__ == "__main__":
     #Seed the random number generator
     random.seed(1)
 
-    # Create layer 1 (4 neurons, each with 3 inputs)
+    # Create layer 1 (8 neurons, each with 9 inputs)
     layer1 = NeuronLayer(8, 9)
 
-    # Create layer 2 (a single neuron with 4 inputs)
+    # Create layer 2 (a single neuron with 8 inputs)
     layer2 = NeuronLayer(1, 8)
 
     # Combine the layers to create a neural network
@@ -128,27 +139,33 @@ if __name__ == "__main__":
 
     # Train the neural network using the training set.
     # Do it 60,000 times and make small adjustments each time.
-    neural_network.train(training_set_inputs, training_set_outputs, 60000)
+    neural_network.train(training_set_inputs, training_set_outputs,100)
 
     print("Stage 2) New synaptic weights after training: ")
     neural_network.print_weights()
 
     # Test the neural network with a new situation.
-    print("Stage 3) Considering a new situation [1, 1, 0] -> ?: ")
+    print("Stage 3) Considering a new situation: ")
     xtest = xtest.to_numpy()
     ytest = ytest.to_numpy()
     count = 0
+
+
     for i in range(0,len(xtest)):
         hidden_state, output = neural_network.think((xtest[i]))
-        # print("Actual Output:",ytest[i][0])
-        # print("Model Output:",output[0])
+        print("Actual Output:",ytest[i][0])
+        print("Model Output:",output[0])
 
-        #look into this once. very bad jugaad.
-
-        if((output[0] ==  0.5 and ytest[i][0]==0) or(output[0] >  0.5 and ytest[i][0]==1) ):
+        # if((output[0] ==  0.5)):
+        #     count = count + 1
+        # # #look into this once.
+        if((output[0] ==  0.5)and ytest[i][0]==0 or (output[0] >  0.5 and ytest[i][0]==1) ):
             count = count + 1
 
-    #hidden_state, output = neural_network.think(array([1, 1, 0]))
+    # #hidden_state, output = neural_network.think(array([1, 1, 0]))
     print("Matched Values:",count)
     print("Actual Values:",len(xtest))
     print("Accuracy:",count*100/len(xtest))
+
+
+

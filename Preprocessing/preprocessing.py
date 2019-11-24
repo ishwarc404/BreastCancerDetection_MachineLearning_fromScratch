@@ -1,5 +1,6 @@
 import pandas as pd
-
+from scipy import stats
+import numpy as np
 #this entire code is just to convert the .data file into a csv
 
 data_file = "breast-cancer.data"
@@ -21,7 +22,7 @@ for i in data.readlines(): #reading line by line
         if(line[i]!="?"):
             line[i] = int(line[i]) #converting the string to an integer
         else:
-            line[i] = 0 #0 means ?
+            line[i] = 999 #999 means ?
     
     for i in range(11):
         cols[column_names[i]].append(line[i])
@@ -30,8 +31,12 @@ for i in data.readlines(): #reading line by line
 for i in column_names: #add all these to the dataframe now
     df[i] = cols[i]
 
+#mode
+print(df.mode()["Bare Nuclei"][0])
+
+df["Bare Nuclei"] = df["Bare Nuclei"].replace(999,df.mode()["Bare Nuclei"][0])
 
 #dataframe is ready now
-df.to_csv("breast_cancer.csv")
+df.to_csv("breast_cancer_mode_replaced.csv")
 
         
