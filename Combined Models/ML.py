@@ -13,13 +13,22 @@ import matplotlib.pyplot as plt
 #lets start by defining a class
 class classificationModels():
 
+    def __init__(self):
+
+        #these initial variables help out with the total kfold accuracy
+        self.neuralnet_accuracy = 0
+        self.knn_accuracy = 0
+
+        #this variable is used while displaying the optimum K value graph for KNN
+        self.knn_all = []
+
     def importDataset(self,path):
         try:
             print("[INFO]:DataPath Read")
             df = pd.read_csv("breast_cancer_mode_replaced.csv")
             df = df.drop("Sample code number", axis=1)
             df = df.drop(df.columns[0],axis=1)
-            user_dataframe = df.astype(int).values.tolist()  #converting the entire dataframe to float 
+            user_dataframe = df.astype(int).values.tolist()  #converting the entire dataframe to int 
             print("[INFO]:DataFrame Returned")
             return user_dataframe
         
@@ -45,7 +54,7 @@ class classificationModels():
 
 
 
-    def knn_logic(self,data, predict, k=4):
+    def knn_logic(self,data, predict,k=4):
         distances = []
         #group as in class and features as in the values
         for group in data:   
@@ -70,6 +79,7 @@ class classificationModels():
             return predicted_values
 
         else:
+            self.knn_accuracy = 0
             print("[INFO]:kFold validation DONE")
             #we need to call the K fold function
             fold = self.cross_validation_split(entire_data,k_fold_val)
@@ -82,9 +92,8 @@ class classificationModels():
                 train_data = []
                 for i in temp:
                     train_data.extend(i)
-                
                 self.kNearest_main(train_data,test_data,k_neighs)
-                
+            print("[INFO]:kFold validation TOTAL accuracy scores:{} %".format((self.knn_accuracy)/k_fold_val))
             return None
 
     def kNearest_main(self,train_data,test_data,k_neighs):
@@ -109,65 +118,112 @@ class classificationModels():
                     right += 1
                 Accuracy= (right/total)*100
         print('[OUTPUT]:kNearestNeighbours Accuracy:',Accuracy)
+        self.knn_all.append(Accuracy)
+        self.knn_accuracy = self.knn_accuracy + Accuracy
         return final_votes #returning the final predicted votes
 
-    def artificialNeuralNets(self,dataframe):
+    def artificialNeuralNets(self,dataframe,kfold=False,kfold_val = 4):
+
         print('[INFO]:Running the Artificial Neural Network')
+        if(kfold==True):
+            self.neuralnetaccurary = 0
+            print("[INFO]:Implementing kFold Validation on ANN")
+            fold = self.cross_validation_split(my_dataframe,kfold_val)
+            for i in range(0,len(fold)):
+                test_data = fold[i]
+                temp = fold[:]
+                temp.remove(temp[i])
+                train_data = []
+                for i in temp:
+                    train_data.extend(i)
+                
+                #now let's convert the test and train into a dataframe
+                scaled_train_df = self.minmaxScaler(train_data) 
+                scaled_train_df = pd.DataFrame(scaled_train_df)
+                #testing
+                scaled_test_df = self.minmaxScaler(test_data) 
+                scaled_test_df = pd.DataFrame(scaled_test_df)
 
-        total_rows = len(dataframe)
-        train_val = int(0.7*total_rows)
-        print("[INFO]:Number of rows trained on:",train_val)
-        print("[INFO]:Number of rows tested on:",total_rows - train_val)
-        #training and testing data
-        xtrain=dataframe.iloc[0:train_val,0:9] #.values.transpose()
-        ytrain=dataframe.iloc[0:train_val,9:] #.values.transpose()
+                total_rows = len(scaled_train_df)
 
-        xtest=dataframe.iloc[train_val:,0:9] #.values.transpose()
-        ytest=dataframe.iloc[train_val:,9:] #.values.transpose()
+                #training and testing data
+                xtrain=scaled_train_df.iloc[0:total_rows,0:9] #.values.transpose()
+                ytrain=scaled_train_df.iloc[0:total_rows,9:] #.values.transpose()
+
+                xtest=scaled_test_df.iloc[:,0:9] #.values.transpose()
+                ytest=scaled_test_df.iloc[:,9:] #.values.transpose()
+
+                self.NeuralNet_main(xtrain,ytrain,xtest,ytest)
+            print("[INFO]:kFold validation TOTAL accuracy score:{} %".format((self.neuralnet_accuracy)/kfold_val))
+            return None
+
+        else:
+            print("[INFO]:NOT Implementing kFold Validation on ANN")
+            dataframe = self.minmaxScaler(dataframe) 
+            #this is a 2d array, for ANN we need a DataFrame as input
+            dataframe = pd.DataFrame(dataframe)
+            total_rows = len(dataframe)
+            train_val = int(0.7*total_rows)
+
+            print("[INFO]:Number of rows trained on:",train_val)
+            print("[INFO]:Number of rows tested on:",total_rows - train_val)
+            #training and testing data
+            xtrain=dataframe.iloc[0:train_val,0:9] #.values.transpose()
+            ytrain=dataframe.iloc[0:train_val,9:] #.values.transpose()
+
+            xtest=dataframe.iloc[train_val:,0:9] #.values.transpose()
+            ytest=dataframe.iloc[train_val:,9:] #.values.transpose()
+
+            final_result = self.NeuralNet_main(xtrain,ytrain,xtest,ytest)
+            return final_result
+
+    
+    def NeuralNet_main(self,xtrain,ytrain,xtest,ytest):
 
         #Seed the random number generator
         random.seed(1)
 
-        # Create layer 1 (4 neurons, each with 3 inputs)
+        # layer 1 (8 neurons, each with 9 inputs)
+        #this acts like the first hidden layer
+        #this initiliases the numpy weight matrix of dimension 9x8 (the initial weights of all the links)
+        #this is the first hidden layer which takes in 9 inputs
         layer1 = NeuronLayer(8, 9)
 
-        # Create layer 2 (a single neuron with 4 inputs)
+        # Create layer 2 (1 neuron with 8 inputs and this acts like the last output later)
         layer2 = NeuronLayer(1, 8)
 
         # Combine the layers to create a neural network
         neural_network = NeuralNetwork(layer1, layer2)
 
-        # print("Stage 1) Random starting synaptic weights: ")
+        # print("[INFO]:Stage 1, Random starting synaptic weights: ")
         # neural_network.print_weights()
 
-        # The training set. We have 7 examples, each consisting of 3 input values
-        # and 1 output value.
-        training_set_inputs = xtrain.to_numpy()
+        training_set_inputs = xtrain.to_numpy() #converting our input dataframe into a numpy array
         training_set_outputs = ytrain.to_numpy()
-        #training_set_inputs = array([[0, 0, 1], [0, 1, 1], [1, 0, 1], [0, 1, 0], [1, 0, 0], [1, 1, 1], [0, 0, 0]])
-        #training_set_outputs = array([[0, 1, 1, 1, 1, 0, 0]]).T
 
         # Train the neural network using the training set.
-        # Do it 60,000 times and make small adjustments each time.
-        neural_network.train(training_set_inputs, training_set_outputs, 60000)
+        # Do it n times times and make small adjustments each time.
+        neural_network.train(training_set_inputs, training_set_outputs, 300) #300 pochs
+        #need to add a parameter which lets the user enter the number of epoch like the kvalue in knn
 
-        # print("Stage 2) New synaptic weights after training: ")
+        # print("[INFO]:Stage 2,New synaptic weights after training: ")
         # neural_network.print_weights()
 
-        # Test the neural network with a new situation.
-        # print("Stage 3) Considering a new situation: ")
         xtest = xtest.to_numpy()
         ytest = ytest.to_numpy()
         count = 0
 
         final_result = []
         final_count = 0
-        for i in range(0,len(xtest)):
+        for i in range(0,len(xtest)): 
+            #passing each row one by one to get the output
+            #when directly calling the think function, Im jsut getting outputs, im not updating weights
             hidden_state, output = neural_network.think((xtest[i]))
             # print("Actual Output:",ytest[i][0])
             # print("Model Output:",output[0])
             final_count = final_count  + 1
             # #look into this once.
+            #Sigmoid function output #based on Andrew NGs course
             if((output[0] ==  0.5)and ytest[i][0]==0):
                 count = count + 1
                 final_result.append(2)
@@ -177,12 +233,14 @@ class classificationModels():
             else:
                 final_result.append(2)
 
+
                 
         # print("[INFO]:Final Count:",final_count)
         #hidden_state, output = neural_network.think(array([1, 1, 0]))
         # print("Matched Values:",count)
         # print("Actual Values:",len(xtest))
         print("[OUTPUT]:Neural Network Accuracy:",count*100/len(xtest))
+        self.neuralnet_accuracy = self.neuralnet_accuracy + (count*100/len(xtest))
         return final_result 
 
         
@@ -207,6 +265,7 @@ class classificationModels():
 
     # Split a dataset into k folds
     def cross_validation_split(self,dataset, folds=3):
+        
         dataset_split = list()
         dataset_copy = list(dataset)
         fold_size = int(len(dataset) / folds)
@@ -218,7 +277,11 @@ class classificationModels():
             dataset_split.append(fold)
         return dataset_split
 
-    def confusion_matrix(self,scaled_df,predicted_values):
+    def confusion_matrix(self,dataframe,predicted_values):
+
+        scaled_df = self.minmaxScaler(dataframe) 
+        #this is a 2d array, for ANN we need a DataFrame as input
+        scaled_df = pd.DataFrame(scaled_df)
 
         total_rows = len(scaled_df)
         train_val = int(0.7*total_rows)
@@ -288,6 +351,7 @@ class NeuralNetwork():
         return y * (1 - y)
     
 
+    #[INFO]:Not using relu as its giving horrible values
     def __ReLU(self,x):
         return x * (x > 0)
 
@@ -300,6 +364,9 @@ class NeuralNetwork():
     # Adjusting the synaptic weights each time.
     def train(self, training_set_inputs, training_set_outputs, number_of_training_iterations):
         for iteration in range(number_of_training_iterations):
+
+            #Implementing the entire backprogation algorithm
+            #ref: https://medium.com/datathings/neural-networks-and-backpropagation-explained-in-a-simple-way-f540a3611f5e
             # Pass the training set through our neural network
             output_from_layer_1, output_from_layer_2 = self.think(training_set_inputs)
 
@@ -339,56 +406,66 @@ if __name__ == "__main__":
 
     
     
-    ANN 
+    #ANN 
     print("[STAGE]:ANN MODEL")
     obj1  = classificationModels()
     my_dataframe = obj1.importDataset("breast_cancer_mode_replaced.csv")
-    #calling the minmax scaler
-    scaled_df = obj1.minmaxScaler(my_dataframe) 
-    #this is a 2d array, for ANN we need a DataFrame as input
-    scaled_df = pd.DataFrame(scaled_df)
-    #now lets pass it to the NN function in the ClassificationModels class
-    predicted_values = obj1.artificialNeuralNets(scaled_df)
-    #plotting a confusion matrix
-    obj1.confusion_matrix(scaled_df,predicted_values)
+    ##now lets pass it to the NN function in the ClassificationModels class
+    predicted_values = obj1.artificialNeuralNets(my_dataframe)
+    ##plotting a confusion matrix
+    obj1.confusion_matrix(my_dataframe,predicted_values)
 
 
     
-    #KNN
-    print("\n")
-    print("[STAGE]:KNN MODEL")
-    obj2  = classificationModels()
-    my_dataframe = obj2.importDataset("breast_cancer_mode_replaced.csv")
-    #Note: Change it to True to enable K fold validation
-    """Note: 1st parameter is the dataframe array,
-    2nd parameter: Number of neighbours
-    3rd parameter: True/False for k-fold validation
-    4th parameter: Number of folds for k-fold validation
-    """
-    predicted_values = obj2.kNearest(my_dataframe,4,True,4) #False for no kfold
+    # ###KNN
+    # print("\n")
+    # print("[STAGE]:KNN MODEL")
+    # obj2  = classificationModels()
+    # my_dataframe = obj2.importDataset("breast_cancer_mode_replaced.csv")
+    # #Note: Change it to True to enable K fold validation
+    # """Note: 1st parameter is the dataframe array,
+    # 2nd parameter: Number of neighbours
+    # 3rd parameter: True/False for k-fold validation
+    # 4th parameter: Number of folds for k-fold validation
+    # """
+    # predicted_values = obj2.kNearest(my_dataframe,4,True,4) #False for no kfold
 
-    #Note: confusion matrix will work only if K fold is False for now
-    # plotting a confusion matrix 
-    try:
-        scaled_df = obj2.minmaxScaler(my_dataframe) 
-        scaled_df = pd.DataFrame(scaled_df)
-        obj2.confusion_matrix(scaled_df,predicted_values)
-    except:
-        print("[ERROR]:Confusion Matrix cannot be generated when k-fold = TRUE")
+    # #Note: confusion matrix will work only if K fold is False for now
+    # # plotting a confusion matrix 
+    # try:
+    #     scaled_df = obj2.minmaxScaler(my_dataframe) 
+    #     scaled_df = pd.DataFrame(scaled_df)
+    #     obj2.confusion_matrix(scaled_df,predicted_values)
+    # except:
+    #     print("[ERROR]:Confusion Matrix cannot be generated when k-fold = TRUE")
 
 
 
-    #K FOLD CROSSVALIDATION for ANN #NOT REALLY AS WE NEED TO SAVE THE CHECKPOINTS...
+    # ## K FOLD CROSSVALIDATION for ANN 
+    # ## TRYING TO SAVE CHECKPOINTS AS NPZ FILES
+    # print("\n[STAGE]:ANN MODEL WITH KFOLD VALIDATION")
     # obj4  = classificationModels()
     # my_dataframe = obj4.importDataset("breast_cancer_mode_replaced.csv")
     # seed(1)
-    # folds = obj4.cross_validation_split(my_dataframe, 4)
-    # for i in folds:
-    #     scaled_df = obj4.minmaxScaler(i) 
-    #     scaled_df = pd.DataFrame(i)
-    #     obj4.artificialNeuralNets(scaled_df)
-        
+    # predicted_values = obj4.artificialNeuralNets(my_dataframe,True,6)
+    # if(predicted_values != None):
+    #     obj4.confusion_matrix(my_dataframe,predicted_values)
+    # else:
+    #     print("[ERROR]:Confusion Matrix cannot be generated when k-fold = TRUE")
 
 
 
+
+    ###KNN GRAPH FOR OPTIMAL K VALUE
+    # obj2  = classificationModels()
+    # my_dataframe = obj2.importDataset("breast_cancer_mode_replaced.csv")
+    # k_vals = [i for i in range(2,7)]
+    # for k in k_vals:
+    #     obj2.kNearest(my_dataframe,k,False,4)
+
+    # print("[INFO]:Plotting the Optimum K value graph")
+    # plt.plot(k_vals,obj2.knn_all)
+    # plt.xlabel("K values")
+    # plt.ylabel("Accurary")
+    # plt.show()
 
